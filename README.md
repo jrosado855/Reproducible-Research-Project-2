@@ -16,6 +16,12 @@ There is also some documentation of the database available. Here you will find h
     National Climatic Data Center Storm Events FAQ
 
 The events in the database start in the year 1950 and end in November 2011. In the earlier years of the database there are generally fewer events recorded, most likely due to a lack of good records. More recent years should be considered more complete.
+
+Findings: 
+-  1. Tornados cause the most fatalities.
+-  2. Tornados cause the most injuries.
+-  3. Flooding causes the most property damage.
+
 Review criteria
 
     Has either a (1) valid RPubs URL pointing to a data analysis document for this assignment been submitted; or (2) a complete PDF file presenting the data analysis been uploaded?
