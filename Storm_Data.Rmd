@@ -1,0 +1,194 @@
+---
+title: "Storm Data"
+author: "Jose Rosado"
+date: "October 8, 2017"
+output: 
+  html_document: 
+    keep_md: yes
+---
+# Reproducible Research - Project 2
+##Title:  Fatalities, Injuries And Property Damage From Severe Weather
+
+### Synopsis:
+  
+####  The basic goal of this assignment is to explore the NOAA Storm Database and answer some basic questions about severe weather events. You must use the database to answer the questions below and show the code for your entire analysis. Your analysis can consist of tables, figures, or other summaries. You may use any R package you want to support your analysis.
+
+####Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+####This project involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+### Data analysis must address the following questions:
+  
+- 1. Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+- 2. Across the United States, which types of events have the greatest economic consequences?
+
+### Findings: 
+-  1. Tornados cause the most fatalities.
+-  2. Tornados cause the most injuries.
+-  3. Flooding causes the most property damage.
+  
+### Data Processing:
+  
+#### Download data set (if not present) and load into R.
+
+```r
+library(downloader)
+download.file ("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2", destfile = "repdata-data-StormData.csv.bz2")
+storm <- read.csv("repdata-data-StormData.csv.bz2", stringsAsFactors = FALSE, header = TRUE)
+```
+
+### Load and read the Data
+```r
+storm1 <- storm[ , c("EVTYPE", "FATALITIES", "INJURIES", "PROPDMG", "PROPDMGEXP", "CROPDMG", "CROPDMGEXP")]
+```
+
+```r
+#calculate sum of fatalities number for EVTYPE, store the values in dataframe*storm_fatal+
+library(plyr)
+storm_fatal <- ddply(storm1,.(EVTYPE), summarize, sum_fatal = sum(FATALITIES))
+#sort *storm_fatal* in decreasing order based on sum_fatal value and store in a new dataframe *fatal_order*.
+fatal_order <- storm_fatal[order(storm_fatal$sum_fatal, decreasing = TRUE),]
+#look up top 20 fatal_order data 
+h1 <- head(fatal_order, 20)
+h1[order(h1$EVTYPE),]
+```
+
+```r
+storm1$EVTYPE <- gsub("FLASH FLOOD|HEAVY RAIN", "FLOOD", storm1$EVTYPE)
+storm1$EVTYPE <- gsub(".*HEAT","HEAT", storm1$EVTYPE)
+storm1$EVTYPE <- gsub("HEAT WAVE","HEAT", storm1$EVTYPE)
+storm1$EVTYPE <- gsub("EXTREME COLD","WIND CHILL", storm1$EVTYPE)
+storm1$EVTYPE <- gsub("BLIZZARD|HEAVY SNOW|ICE STORM","WINTER STORM", storm1$EVTYPE)
+storm1$EVTYPE <- gsub("RIP CURRENTS|HIGH SURF","RIP CURRENT",storm1$EVTYPE)
+storm1$EVTYPE <- gsub("WINDS","WIND",storm1$EVTYPE)
+storm1$EVTYPE <- gsub("(.*)WIND","WIND", storm1$EVTYPE)
+```
+
+### Sort and select top20 EVTYPE based on injuries count
+```r
+#Calculate sum of injuries number for each EVTYPE, store the values in  dataframe *storm_injur* .
+storm_injur <- ddply(storm1,.(EVTYPE), summarize, sum_injur = sum(INJURIES))
+
+#sort *storm_injur* in decreasing order based on sum_injur value and store in a new dataframe *injur_order*.
+injur_order <- storm_injur[order(storm_injur$sum_injur, decreasing = TRUE),]
+
+#look up top 20 injur_order data 
+h2 <- head(injur_order, 20)
+h2[order(h2$EVTYPE),]
+```
+
+```r
+storm1$EVTYPE <- gsub("DENSE FOG", "FOG",storm1$EVTYPE)
+storm1$EVTYPE <- gsub("WILD/FOREST FIRE|WILDFIRE", "WILD FIRES",storm1$EVTYPE)
+storm1$EVTYPE <- gsub("WINTER WEATHER", "WINTER STORM",storm1$EVTYPE)
+storm1$EVTYPE <- gsub("TROPICAL STORM","HEAT",storm1$EVTYPE)
+```
+
+```r
+#process CROPDMGEXP variable
+storm1$CROPDMGEXP <- gsub("\\?", "NA", storm1$CROPDMGEXP)
+storm1$CROPDMGEXP <- gsub("k|K", "3", storm1$CROPDMGEXP)
+storm1$CROPDMGEXP <- gsub("m|M", "6", storm1$CROPDMGEXP)
+storm1$CROPDMGEXP <- gsub("b|B", "9", storm1$CROPDMGEXP)
+#process PROPDMGEXP variable
+storm1$PROPDMGEXP <- gsub("\\?|\\+|\\-", "NA", storm1$PROPDMGEXP)
+storm1$PROPDMGEXP <- gsub("h|H", "2", storm1$PROPDMGEXP)
+storm1$PROPDMGEXP <- gsub("k|K", "3", storm1$PROPDMGEXP)
+storm1$PROPDMGEXP <- gsub("m|M", "6", storm1$PROPDMGEXP)
+storm1$PROPDMGEXP <- gsub("b|B", "9", storm1$PROPDMGEXP)
+#change CROPDMGEXP & PROPDMGEXP values to numeric vectors
+storm1$CROPDMGEXP <- as.numeric(storm1$CROPDMGEXP)
+```
+
+```r
+storm1$PROPDMGEXP <- as.numeric(storm1$PROPDMGEXP)
+```
+
+```r
+#calculate CROPDMG & PROPDMG loss for each event seperately(compute values as x * 10^exp value) and store the value on a new dataframe **ecoloss**.
+ecoloss <- data.frame(prop_loss = storm1$PROPDMG*(10^storm1$PROPDMGEXP), crop_loss = storm1$CROPDMG*(10^storm1$CROPDMGEXP))
+#calculate total loss of ROPDMG and PROPDMG (rowSums) for each event and add this column "total_loss" to *ecoloss*
+ecoloss$total_loss <- rowSums(ecoloss, na.rm = TRUE)
+#add EVTYPE column to ecoloss
+ecoloss$EVTYPE <- storm1$EVTYPE
+
+#calculate total loss for each EVTYPE, store the values in a new dataframe *storm_ecoloss*
+storm_ecoloss <- ddply(ecoloss,.(EVTYPE), summarize, sum_eco = sum(total_loss))
+#sort the EVTYPE in decreasing order based on sum_eco value and store the ordered data in a new dataframe *ecoloss_order* 
+ecoloss_order <- storm_ecoloss[order(storm_ecoloss$sum_eco, decreasing = TRUE),]
+#look up top 20 ecoloss_order data 
+h3 <- head(ecoloss_order, 20)
+h3[order(h3$EVTYPE),]
+```
+```r
+storm1$EVTYPE <- gsub("FLOOD/SEVERE WEATHER|RIVER FLOOD","FLOOD",storm1$EVTYPE)
+storm1$EVTYPE <- gsub("FROST/FREEZE", "WINTER STORM",storm1$EVTYPE)
+storm1$EVTYPE <- gsub("HURRICANE/TYPHOON|HURRICAN OPAL", "HURRICANE", storm1$EVTYPE)
+storm1$EVTYPE <- gsub("STORM SURGE|STORM SURGE/TIDE", "RIP CURRENT",storm1$EVTYPE)
+storm1$EVTYPE <- gsub("WIND, HAIL","HAIL",storm1$EVTYPE)
+storm1$EVTYPE <- gsub("LIGHTNING", "SEVERE THUNDERSTORM", storm1$EVTYPE)
+```
+
+#### Get the top 10 events with respect to fatalities.
+```r
+storm_fatal_revised <- ddply(storm1,.(EVTYPE), summarize, sum_fatal = sum(FATALITIES))
+fatal_order_revised <- storm_fatal_revised[order(storm_fatal_revised$sum_fatal, decreasing = TRUE),]
+
+
+```r
+#calculate sum of injuries number for each EVTYPE, 
+#sort EVTYPE in decreasing order based on sum_injur value.
+storm_injur_revised <- ddply(storm1,.(EVTYPE), summarize, sum_injur = sum(INJURIES))
+injur_order_revised <- storm_injur_revised[order(storm_injur_revised$sum_injur, decreasing = TRUE),]
+fatal_top <- fatal_order_revised[1:10,]
+fatal_top$sum_fatal <- fatal_top$sum_fatal/1000
+fatal_top
+##selet only top 10 rows and change the unit of injurises number to "thousand".
+injur_top <- injur_order_revised[1:10,]
+injur_top$sum_injur <- injur_top$sum_injur/1000
+injur_top
+```
+
+#### Get top 10 event types with respect to economic loss 
+
+```r
+#calculate CROPDMG & PROPDMG loss for each event seperately(compute values as x * 10^exp value) and store the value on a new dataframe *ecoloss_revised*.
+ecoloss_revised <- data.frame(prop_loss = storm1$PROPDMG*(10^storm1$PROPDMGEXP), crop_loss = storm1$CROPDMG*(10^storm1$CROPDMGEXP))
+
+#add ROPDMG and PROPDMG(rowSums) together for each event and add this column to *ecoloss_revised*
+#add EVTYPE column to ecoloss_revised
+ecoloss_revised$total_loss <- rowSums(ecoloss_revised, na.rm = TRUE)
+ecoloss_revised$EVTYPE <- storm1$EVTYPE
+
+#calculate total economic loss for each EVTYPE and sort in decreasing order.
+storm_ecoloss_revised <- ddply(ecoloss_revised,.(EVTYPE), summarize, sum_eco = sum(total_loss))
+ecoloss_order_revised <- storm_ecoloss_revised[order(storm_ecoloss_revised$sum_eco, decreasing = TRUE),]
+
+#select only top 10 rows, and change the unit of ecoloss to $billion. store value in dataframe *top_ecoloss*
+ecoloss_top <- ecoloss_order_revised[1:10,]
+ecoloss_top$sum_eco <- ecoloss_top$sum_eco/10^9
+ecoloss_top
+```
+
+
+## RESULTS
+### Plot event types in relation with population health to show the Top 10 most harmful event types (as indicated in the EVTYPE variable) with respect to population health across the United States
+
+
+
+
+```{r histogram_injur,fig.height=4, width=8}
+g <- ggplot(injur_top, aes(EVTYPE, sum_injur))
+plot_injur <- g + geom_histogram(stat = "identity")+aes(fill = -sum_injur, reorder(EVTYPE, -sum_injur))+scale_fill_gradient("number in thousand") + labs(x = "event type", y = "number of injuries(thousands)", title = "Top 10 weather events causing injuries") + theme(axis.text.x = element_text(angle=20, hjust=1))
+plot (plot_injur)
+```
+
+
+
+### Plot severe event types in relation to economic consequences to show the Top 10 most harmful event types (as indicated in the EVTYPE variable) with respect to economic loss across the United States
+
+```{r histogram_ecoloss,fig.height=4, fig.width=8}
+g <- ggplot(ecoloss_top, aes(EVTYPE, sum_eco))
+plot_ecoloss <- g + geom_histogram(stat = "identity")+aes(fill = -sum_eco, reorder(EVTYPE, -sum_eco))+scale_fill_gradient("loss in billion", low = "red", high = "green") + labs(x = "event type", y = "economic loss in $billion", title = "Top 10 weather events causing economic loss") + theme(axis.text.x = element_text(angle=20, hjust=1))
+plot (plot_ecoloss)
+```
